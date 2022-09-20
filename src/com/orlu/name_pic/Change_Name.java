@@ -183,8 +183,7 @@ public class Change_Name extends javax.swing.JFrame {
                      writeInFileMauvais(photo.getName().substring(0,6));
 
                     txtInfo.append("Not match for :"+photo.getName()+"\n");
-                     txtInfo.setText("Pas de correspondance pour :"+photo.getName()+"\n");
-                    System.out.println(Files.copy(photo.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING));
+
                 }else numCompteByPin.forEach(numCmpt ->{
                     try {
                     writeInFileBon(numCmpt);
