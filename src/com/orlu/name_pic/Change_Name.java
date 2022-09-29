@@ -313,5 +313,4 @@ File[] photos= dossier_photo.listFiles();
     private javax.swing.JPanel panNamePic;
     private javax.swing.JProgressBar pbNamePic;
     private javax.swing.JTextArea txtInfo;
-    // End of variables declaration//GEN-END:variables
 }
