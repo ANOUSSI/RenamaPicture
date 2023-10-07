@@ -8,16 +8,23 @@ package com.orlu.name_pic;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 
@@ -25,15 +32,16 @@ import javax.swing.JFrame;
  *
  * @author DSITD
  */
-public class Change_Name extends javax.swing.JFrame {
+public class Change_NameV3 extends javax.swing.JFrame {
 
     public static final String RESULT_FILE_NAME_BON = "FUSIONS-PHOTOS-TRAITEES.txt";
         public static final String RESULT_FILE_NAME_MAUVAIS = "FUSIONS-NON-TRAITEES.txt";
+        public static final String RESULT_FILE_NAME_DOUBLONS = "FUSIONS-DOUBLONS.txt";
         private JFrame frame;
 	public static File dossier_photo;
 	public static File numCptFile;
         public static final String DEST_DIR = "c:/output/";
-    public Change_Name() {
+    public Change_NameV3() {
         initComponents();
     }
 
@@ -159,6 +167,9 @@ public class Change_Name extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    
+    
+   
     public void comparaison(File[] photosDest, List<String> numCompts) throws IOException {
         if(Objects.isNull(photosDest) || Objects.isNull(numCompts) || numCompts.isEmpty() || photosDest.length ==0){
             return;
@@ -177,25 +188,43 @@ public class Change_Name extends javax.swing.JFrame {
             for (File photo : photosDest) {
                 try {
                 List<String> numCompteByPin = findNumCompteByPin(numCompts, photo);
+               
+                
+                
+                
                 if(numCompteByPin.isEmpty()){
                     File dest = new File(DEST_DIR + "/PhotosAproblemes/" + photo.getName());
                     Files.copy(photo.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                     writeInFileMauvais(photo.getName().substring(0,6));
+                    // writeInFileMauvais(photo.getName().substring(0,6));
+                     writeInFileMauvais(photo.getName());
 
                     txtInfo.append("Not match for :"+photo.getName()+"\n");
 
-                }else numCompteByPin.forEach(numCmpt ->{
-                    try {
-                    writeInFileBon(numCmpt);
-                        File dest = new File(DEST_DIR + "/PhotosRenommees/" + numCmpt + ".jpg");
+                }else {
+                	if(numCompteByPin.size()>1) {
+                		NumDoublon doublon=new NumDoublon();
+                		doublon.setPin(photo.getName().substring(0, 6));
+                		doublon.setListnumComptes(numCompteByPin);   
+                		 ajouterAuFichier(doublon);
+                	}
+                	
+                	numCompteByPin.forEach(numCmpt ->{
+                        try {
+                        writeInFileBon(numCmpt);
+                            File dest = new File(DEST_DIR + "/PhotosRenommees/" + numCmpt + ".jpg");
 
-                        Files.copy(photo.toPath(), dest.toPath(),StandardCopyOption.REPLACE_EXISTING);
+                            Files.copy(photo.toPath(), dest.toPath(),StandardCopyOption.REPLACE_EXISTING);
 
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
 
-                });
+                    });
+                    
+                }
+                	
+                	
+                
                 pbNamePic.setValue(++i);
                 pbNamePic.setString(i + " photos traitées ");
                 } catch (IOException e) {
@@ -203,13 +232,51 @@ public class Change_Name extends javax.swing.JFrame {
                 }
             }
 
-
-
-
         };
         new Thread(runnable).start();
     }
     
+    
+    
+
+    
+    
+    public static void ajouterAuFichier(NumDoublon numDoublon) {
+    	String fileName=DEST_DIR + "/FUSION_PIN_DOUBLONS.txt";
+     	File file = new File(fileName);
+
+         if (!file.exists()) {
+         	  boolean created = createFile(fileName);
+         }
+        try (FileWriter writer = new FileWriter(fileName, true)) {
+            String data = numDoublon.getPin()+": " + String.join(", ", numDoublon.getListnumComptes());
+            writer.write(data);
+            writer.write(System.lineSeparator()); // Ajoutez une nouvelle ligne
+            System.out.println("Données ajoutées au fichier.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
+    
+    
+    public static boolean createFile(String fileName) {
+        try {
+            // Créez un objet File pour représenter le fichier
+            File file = new File(fileName);
+
+            // Utilisez FileOutputStream pour créer le fichier vide
+            if (file.createNewFile()) {
+                return true; // Le fichier a été créé avec succès
+            } else {
+                return false; // Le fichier existe déjà
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false; // Une erreur s'est produite lors de la création du fichier
+        }
+    }
     public static void writeInFileMauvais(String pin) throws IOException {
         FileOutputStream fileOutputStream = new FileOutputStream(DEST_DIR+ "/" + RESULT_FILE_NAME_MAUVAIS, true);
         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
@@ -223,12 +290,54 @@ public class Change_Name extends javax.swing.JFrame {
         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
         BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
         try (PrintWriter out = new PrintWriter(bufferedWriter)) {
-            out.println(pin);
+            out.println(pin);   
         }
 
     }
     private List<String> findNumCompteByPin(List<String> numCompts, File photo) {
-           return numCompts.stream().filter(numCmpt -> photo.getName().contains(numCmpt.substring(2, 8))).collect(Collectors.toList());
+          // return numCompts.stream().filter(numCmpt -> photo.getName().contains(numCmpt.substring(2,8))).collect(Collectors.toList());
+    //	return numCompts.stream().filter(numCmpt -> photo.getName().contains(numCmpt.substring(2,7))).collect(Collectors.toList());
+    	List<String> listComptes=new ArrayList<>();
+    	String photoname=photo.getName().substring(0, 6);
+    	//System.out.println("photoname "+photoname);
+    	String resultat = "";
+    	for(String numcompt:numCompts) {
+    	
+    		
+    		if(numcompt.length()<11){
+    		/*	int leng=numcompt.length();
+    			int dif=11-leng;
+    			String nombreze="";
+    			for(int i=0;i<dif;i++) {
+    				nombreze+="0";
+    			}
+    			
+    			
+    			 resultat = nombreze.concat("").concat(numcompt);                                        
+    			 System.out.println(resultat);*/
+    			
+    		}else {
+
+    			//resultat=numcompt;
+    		//System.out.println("photoname "+resultat);   		
+    		String PinNumCompte=numcompt.substring(2, 8);
+    		if(PinNumCompte.equals(photoname)) {
+    			System.out.println("numcompt rrzzrz"+numcompt);
+ 			   System.out.println("photoname pin "+photoname);
+     		    listComptes.add(numcompt);
+    		}
+    			
+    		}
+    	}
+    	
+    	 List<String> listeTriee = listComptes.stream()
+    	            .sorted() // Triez les éléments de la liste par ordre naturel (ordre alphabétique pour les chaînes)
+    	            .collect(Collectors.toList()); // Collectez les éléments triés dans une nouvelle liste
+
+    	return listeTriee;
+    	
+        //   return numCompts.stream().filter(numCmpt -> photo.getName().contains(numCmpt.substring(2,7))).collect(Collectors.toList());
+           
     }      
     
     private void btnGoActionPerformed(java.awt.event.ActionEvent evt) {
@@ -242,7 +351,7 @@ File[] photos= dossier_photo.listFiles();
                     e.printStackTrace();
                 }
             }
-    }//GEN-LAST:event_btnGoActionPerformed
+    }
 
     private void btnRepPicActionPerformed(java.awt.event.ActionEvent evt) {
         JFileChooser chooser = new JFileChooser();
@@ -281,24 +390,24 @@ File[] photos= dossier_photo.listFiles();
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Change_Name.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Change_NameV3.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Change_Name.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Change_NameV3.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Change_Name.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Change_NameV3.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(Change_Name.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Change_NameV3.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new Change_Name().setVisible(true);
+                new Change_NameV3().setVisible(true);
             }
         });
     }
-
+ 
     
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
